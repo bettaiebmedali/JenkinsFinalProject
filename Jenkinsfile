@@ -11,14 +11,24 @@ pipeline {
   }
   stages {
     stage('Checkout') { steps { checkout scm } }
+
     stage('Unit Tests') { 
       steps { 
         sh '''
-          python3 -m pip install -r requirements.txt
+          # Create and activate virtual environment
+          python3 -m venv venv
+          . venv/bin/activate
+
+          # Upgrade pip and install dependencies
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+          # Run tests
           pytest -q || true
         ''' 
       } 
     }
+
     stage('SonarQube Analysis') { 
       steps { 
         withCredentials([string(credentialsId:'sonar_token', variable:'SONAR_TOKEN')]) { 
@@ -33,6 +43,7 @@ pipeline {
         } 
       } 
     }
+
     stage('Quality Gate') { 
       steps { 
         script { 
@@ -47,6 +58,7 @@ pipeline {
         } 
       } 
     }
+
     stage('Build Docker Image') { 
       steps { 
         script { 
@@ -55,6 +67,7 @@ pipeline {
         } 
       } 
     }
+
     stage('Push to Registry') { 
       steps { 
         withCredentials([usernamePassword(credentialsId:'docker_registry', usernameVariable:'REG_USER', passwordVariable:'REG_PASS')]) { 
@@ -66,6 +79,7 @@ pipeline {
         } 
       } 
     }
+
     stage('Deploy -> DEV') { 
       steps { 
         withCredentials([sshUserPrivateKey(credentialsId:'ansible_ssh', keyFileVariable:'SSH_KEY', usernameVariable:'SSH_USER')]) { 
@@ -77,7 +91,9 @@ pipeline {
         } 
       } 
     }
+
     stage('Verify -> DEV') { steps { sh 'curl -fsS http://127.0.0.1:8080/health || (echo "DEV health failed" && exit 1)' } }
+
     stage('Promote to QUALIF') { 
       when { expression { return params.AUTO_PROMOTE } } 
       steps { 
@@ -89,10 +105,12 @@ pipeline {
         } 
       } 
     }
+
     stage('Promote to PROD (Manual)') { 
       when { expression { return !params.AUTO_PROMOTE } } 
       steps { input message: "Valider déploiement en PROD ?" } 
     }
+
     stage('Deploy -> PROD') { 
       steps { 
         withCredentials([sshUserPrivateKey(credentialsId:'ansible_ssh', keyFileVariable:'SSH_KEY', usernameVariable:'SSH_USER')]) { 
@@ -103,6 +121,7 @@ pipeline {
         } 
       } 
     }
+
     stage('Verify -> PROD') { steps { sh 'curl -fsS http://127.0.0.1:8080/health || (echo "PROD health failed" && exit 1)' } }
   }
   post { 
