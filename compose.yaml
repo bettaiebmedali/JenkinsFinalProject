@@ -1,0 +1,51 @@
+version: "3.8"
+services:
+  registry:
+    image: registry:2
+    ports: ["5000:5000"]
+    restart: unless-stopped
+
+  sonarqube:
+    image: sonarqube:9.9-community
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://db:5432/sonar
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+    ports:
+      - "9000:9000"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_DB=sonar
+
+  dev-server:
+    image: ubuntu:22.04
+    container_name: dev-server
+    tty: true
+    privileged: true
+    ports:
+      - "2222:22"
+    command: ["/bin/sh","-c","apt-get update && apt-get install -y openssh-server docker.io python3 python3-pip && mkdir -p /var/run/sshd && echo 'root:root' | chpasswd && /usr/sbin/sshd -D"]
+
+  qualif-server:
+    image: ubuntu:22.04
+    container_name: qualif-server
+    tty: true
+    privileged: true
+    ports:
+      - "2223:22"
+    command: ["/bin/sh","-c","apt-get update && apt-get install -y openssh-server docker.io python3 python3-pip && mkdir -p /var/run/sshd && echo 'root:root' | chpasswd && /usr/sbin/sshd -D"]
+
+  prod-server:
+    image: ubuntu:22.04
+    container_name: prod-server
+    tty: true
+    privileged: true
+    ports:
+      - "2224:22"
+    command: ["/bin/sh","-c","apt-get update && apt-get install -y openssh-server docker.io python3 python3-pip && mkdir -p /var/run/sshd && echo 'root:root' | chpasswd && /usr/sbin/sshd -D"]
