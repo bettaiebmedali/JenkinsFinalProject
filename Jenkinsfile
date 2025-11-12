@@ -4,10 +4,11 @@ pipeline {
     REGISTRY = "registry.local:5000"
     IMAGE = "myapp"
     SONAR_HOST = "http://localhost:9000"
+    FLASK_PORT = "8888"  // Nouveau port pour Jenkins
   }
   parameters {
     string(name: 'VERSION', defaultValue: "0.1.0-${env.BUILD_NUMBER}", description: 'Tag image')
-    booleanParam(name: 'AUTO_PROMOTE', defaultValue: false, description: 'Promote automatically to qualif/prod')
+    booleanParam(name: 'AUTO_PROMOTE', defaultValue: false, description: 'Promote automatiquement vers qualif/prod')
   }
   stages {
     stage('Checkout') { steps { checkout scm } }
@@ -15,16 +16,27 @@ pipeline {
     stage('Unit Tests') { 
       steps { 
         sh '''
-          # Create and activate virtual environment
+          # Création et activation du virtualenv
           python3 -m venv venv
           . venv/bin/activate
 
-          # Upgrade pip and install dependencies
+          # Upgrade pip et installation des dépendances
           pip install --upgrade pip
           pip install -r requirements.txt
 
-          # Run tests
-          pytest -q || true
+          # Lancement de l'application Flask sur le port 8888 en arrière-plan
+          export FLASK_APP=app.py
+          flask run --host=127.0.0.1 --port=$FLASK_PORT &
+          FLASK_PID=$!
+
+          # Attendre que Flask démarre
+          sleep 5
+
+          # Lancer les tests en pointant sur le port 8888
+          pytest -q --url http://127.0.0.1:$FLASK_PORT || true
+
+          # Arrêter Flask après les tests
+          kill $FLASK_PID
         ''' 
       } 
     }
@@ -96,7 +108,7 @@ pipeline {
       steps { 
         script {
           sh """
-            curl -s http://127.0.0.1:8080/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
+            curl -s http://127.0.0.1:$FLASK_PORT/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
           """
           echo "DEV health check passed"
         }
@@ -135,7 +147,7 @@ pipeline {
       steps { 
         script {
           sh """
-            curl -s http://127.0.0.1:8080/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
+            curl -s http://127.0.0.1:$FLASK_PORT/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
           """
           echo "PROD health check passed"
         }
