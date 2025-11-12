@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+  registry:
+    image: registry:2
+    ports: ["5000:5000"]
+    restart: unless-stopped
+  # full content omitted here for brevity - please replace with the intended docker-compose file from the earlier conversation

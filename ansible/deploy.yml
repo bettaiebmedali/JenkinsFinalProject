@@ -1,0 +1,46 @@
+---
+- name: Déploiement simple sur environnements simulés
+  hosts: all
+  become: true
+  vars:
+    registry: "registry.local:5000"
+    image: "myapp"
+    port: 8080
+  tasks:
+    - name: Vérifier Docker
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - debug:
+        msg: "Docker sur {{ inventory_hostname }} : {{ docker_version.stdout }}"
+
+    - name: Pull image from registry (if exists)
+      ansible.builtin.shell: "docker pull {{ registry }}/{{ image }}:{{ version }} || true"
+      args:
+        executable: /bin/bash
+
+    - name: Stop old container if running
+      ansible.builtin.shell: "docker ps -q -f name={{ image }} | xargs --no-run-if-empty docker stop || true"
+      ignore_errors: true
+
+    - name: Remove old container
+      ansible.builtin.shell: "docker rm -f {{ image }} || true"
+      ignore_errors: true
+
+    - name: Run new container
+      ansible.builtin.shell: >
+        docker run -d --name {{ image }} -p {{ port }}:{{ port }}
+        --restart unless-stopped {{ registry }}/{{ image }}:{{ version }}
+      args:
+        executable: /bin/bash
+
+    - name: Wait for app health endpoint
+      ansible.builtin.uri:
+        url: "http://localhost:{{ port }}/health"
+        status_code: 200
+        timeout: 10
+      register: hc
+      retries: 6
+      delay: 5
+      until: hc.status == 200

@@ -1,0 +1,7 @@
+---
+- name: Test de connexion SSH vers containers
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Ping
+      ansible.builtin.ping:
