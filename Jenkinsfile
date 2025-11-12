@@ -92,7 +92,16 @@ pipeline {
       } 
     }
 
-    stage('Verify -> DEV') { steps { sh 'curl -fsS http://127.0.0.1:8080/health || (echo "DEV health failed" && exit 1)' } }
+    stage('Verify -> DEV') { 
+      steps { 
+        script {
+          sh """
+            curl -s http://127.0.0.1:8080/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
+          """
+          echo "DEV health check passed"
+        }
+      } 
+    }
 
     stage('Promote to QUALIF') { 
       when { expression { return params.AUTO_PROMOTE } } 
@@ -122,7 +131,16 @@ pipeline {
       } 
     }
 
-    stage('Verify -> PROD') { steps { sh 'curl -fsS http://127.0.0.1:8080/health || (echo "PROD health failed" && exit 1)' } }
+    stage('Verify -> PROD') { 
+      steps { 
+        script {
+          sh """
+            curl -s http://127.0.0.1:8080/health | python3 -c 'import sys, json; data=json.load(sys.stdin); sys.exit(0 if data.get("status") is True else 1)'
+          """
+          echo "PROD health check passed"
+        }
+      } 
+    }
   }
   post { 
     success { echo "Pipeline terminé : ${IMAGE_TAG}" } 
