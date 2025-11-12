@@ -41,32 +41,36 @@ pipeline {
       } 
     }
 
-        stage('SonarQube Analysis') {
-      steps {
-        script {
-          // Vérifie que le scanner est disponible localement
-          echo "🔍 Lancement de l'analyse SonarQube..."
-          withSonarQubeEnv('My SonarQube Server') {   // ⚠️ Nom à faire correspondre à la config Jenkins
-            sh '''
-              set -e
-              if command -v sonar-scanner >/dev/null 2>&1; then
-                sonar-scanner \
-                  -Dsonar.projectKey=my-app \
-                  -Dsonar.sources=. \
-                  -Dsonar.host.url=$SONAR_HOST
-              else
-                docker run --rm \
-                  -v "$PWD":/usr/src \
-                  sonarsource/sonar-scanner-cli \
-                  -Dsonar.projectKey=my-app \
-                  -Dsonar.sources=/usr/src \
-                  -Dsonar.host.url=$SONAR_HOST
-              fi
-            '''
-          }
-        }
+       stage('SonarQube Analysis') {
+  steps {
+    script {
+      echo "🔍 Lancement de l'analyse SonarQube..."
+      // Définition explicite de l'URL SonarQube accessible depuis le conteneur Docker
+      def sonarHost = "http://172.17.0.1:9000"
+
+      withSonarQubeEnv('My SonarQube Server') {   // Nom doit correspondre à ta config dans Jenkins
+        sh """
+          set -e
+          if command -v sonar-scanner >/dev/null 2>&1; then
+            echo '➡️ Exécution du scanner local...'
+            sonar-scanner \
+              -Dsonar.projectKey=my-app \
+              -Dsonar.sources=. \
+              -Dsonar.host.url=${sonarHost}
+          else
+            echo '🐳 Exécution du scanner via Docker...'
+            docker run --rm \
+              -v "\$PWD":/usr/src \
+              sonarsource/sonar-scanner-cli \
+              -Dsonar.projectKey=my-app \
+              -Dsonar.sources=/usr/src \
+              -Dsonar.host.url=${sonarHost}
+          fi
+        """
       }
     }
+  }
+}
 
     stage('Quality Gate') {
       steps {
