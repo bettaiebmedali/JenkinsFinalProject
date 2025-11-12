@@ -60,14 +60,8 @@ pipeline {
                 -Dsonar.login=$SONAR_TOKEN
             else
               echo '🐳 Exécution du scanner via Docker...'
-              docker run --rm \
-                -v "\$PWD":/usr/src \
-                -v "\$PWD/.sonar":/usr/src/.sonar \               # 🟢 monte le dossier temporaire
-                sonarsource/sonar-scanner-cli \
-                -Dsonar.projectKey=my-app \
-                -Dsonar.sources=/usr/src \
-                -Dsonar.host.url=${sonarHost} \
-                -Dsonar.login=$SONAR_TOKEN
+              docker run --rm -v "$PWD":/usr/src -v "$PWD/.sonar":/usr/src/.sonar sonarsource/sonar-scanner-cli -Dsonar.projectKey=my-app -Dsonar.sources=/usr/src -Dsonar.host.url=$SONAR_HOST -Dsonar.login=$SONAR_TOKEN
+
             fi
           """
         }
