@@ -41,7 +41,7 @@ pipeline {
       } 
     }
 
-      stage('SonarQube Analysis') {
+     stage('SonarQube Analysis') {
   steps {
     script {
       echo "🔍 Lancement de l'analyse SonarQube..."
@@ -62,6 +62,7 @@ pipeline {
               echo '🐳 Exécution du scanner via Docker...'
               docker run --rm \
                 -v "\$PWD":/usr/src \
+                -v "\$PWD/.sonar":/usr/src/.sonar \               # 🟢 monte le dossier temporaire
                 sonarsource/sonar-scanner-cli \
                 -Dsonar.projectKey=my-app \
                 -Dsonar.sources=/usr/src \
