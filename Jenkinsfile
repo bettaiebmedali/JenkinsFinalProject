@@ -85,13 +85,34 @@ pipeline {
 
 
     
-    stage('Quality Gate') {
-      steps {
-        timeout(time: 5, unit: 'MINUTES') {
-          waitForQualityGate abortPipeline: true
+  stage('SonarQube Analysis') {
+    steps {
+        script {
+            echo "🔍 Lancement de l'analyse SonarQube..."
+            
+            // Le wrapper fournit SONAR_HOST_URL et SONAR_AUTH_TOKEN
+            withSonarQubeEnv('My SonarQube Server') {
+
+                // On lance le scanner via Docker en injectant les variables
+                sh '''
+                docker run --rm --network="host" \
+                  -v "$PWD":/usr/src \
+                  -v "$PWD/.sonar":/usr/src/.sonar \
+                  -e SONAR_HOST_URL=$SONAR_HOST_URL \
+                  -e SONAR_LOGIN=$SONAR_AUTH_TOKEN \
+                  sonarsource/sonar-scanner-cli \
+                  -Dsonar.projectKey=my-app \
+                  -Dsonar.sources=/usr/src
+                '''
+            }
+
+            // Attend le résultat du Quality Gate
+            timeout(time: 5, unit: 'MINUTES') {
+                waitForQualityGate abortPipeline: true
+            }
         }
-      }
     }
+}
 
 
     stage('Build Docker Image') { 
