@@ -41,37 +41,42 @@ pipeline {
       } 
     }
 
-       stage('SonarQube Analysis') {
+      stage('SonarQube Analysis') {
   steps {
     script {
       echo "🔍 Lancement de l'analyse SonarQube..."
-      // Définition explicite de l'URL SonarQube accessible depuis le conteneur Docker
       def sonarHost = "http://172.17.0.1:9000"
 
-      withSonarQubeEnv('My SonarQube Server') {   // Nom doit correspondre à ta config dans Jenkins
-        sh """
-          set -e
-          if command -v sonar-scanner >/dev/null 2>&1; then
-            echo '➡️ Exécution du scanner local...'
-            sonar-scanner \
-              -Dsonar.projectKey=my-app \
-              -Dsonar.sources=. \
-              -Dsonar.host.url=${sonarHost}
-          else
-            echo '🐳 Exécution du scanner via Docker...'
-            docker run --rm \
-              -v "\$PWD":/usr/src \
-              sonarsource/sonar-scanner-cli \
-              -Dsonar.projectKey=my-app \
-              -Dsonar.sources=/usr/src \
-              -Dsonar.host.url=${sonarHost}
-          fi
-        """
+      withSonarQubeEnv('My SonarQube Server') {
+        withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN')]) {
+          sh """
+            set -e
+            if command -v sonar-scanner >/dev/null 2>&1; then
+              echo '➡️ Exécution du scanner local...'
+              sonar-scanner \
+                -Dsonar.projectKey=my-app \
+                -Dsonar.sources=. \
+                -Dsonar.host.url=${sonarHost} \
+                -Dsonar.login=$SONAR_TOKEN
+            else
+              echo '🐳 Exécution du scanner via Docker...'
+              docker run --rm \
+                -v "\$PWD":/usr/src \
+                sonarsource/sonar-scanner-cli \
+                -Dsonar.projectKey=my-app \
+                -Dsonar.sources=/usr/src \
+                -Dsonar.host.url=${sonarHost} \
+                -Dsonar.login=$SONAR_TOKEN
+            fi
+          """
+        }
       }
     }
   }
 }
 
+
+    
     stage('Quality Gate') {
       steps {
         timeout(time: 5, unit: 'MINUTES') {
