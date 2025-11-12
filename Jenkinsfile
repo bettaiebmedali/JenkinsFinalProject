@@ -4,7 +4,7 @@ pipeline {
     REGISTRY = "registry.local:5000"
     IMAGE = "myapp"
     SONAR_HOST = "http://localhost:9000"
-    FLASK_PORT = "8888"  // Nouveau port pour Jenkins
+    FLASK_PORT = "8888"  // Port utilisé pour Flask et tests
   }
   parameters {
     string(name: 'VERSION', defaultValue: "0.1.0-${env.BUILD_NUMBER}", description: 'Tag image')
@@ -16,15 +16,15 @@ pipeline {
     stage('Unit Tests') { 
       steps { 
         sh '''
-          # Création et activation du virtualenv
+          # Créer et activer le virtualenv
           python3 -m venv venv
           . venv/bin/activate
 
-          # Upgrade pip et installation des dépendances
+          # Installer les dépendances
           pip install --upgrade pip
           pip install -r requirements.txt
 
-          # Lancement de l'application Flask sur le port 8888 en arrière-plan
+          # Lancer Flask sur le port 8888 en arrière-plan
           export FLASK_APP=app.py
           flask run --host=127.0.0.1 --port=$FLASK_PORT &
           FLASK_PID=$!
@@ -32,10 +32,10 @@ pipeline {
           # Attendre que Flask démarre
           sleep 5
 
-          # Lancer les tests en pointant sur le port 8888
-          pytest -q --url http://127.0.0.1:$FLASK_PORT || true
+          # Lancer les tests
+          pytest -q || true
 
-          # Arrêter Flask après les tests
+          # Arrêter Flask après tests
           kill $FLASK_PID
         ''' 
       } 
