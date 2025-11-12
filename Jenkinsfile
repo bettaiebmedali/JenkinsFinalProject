@@ -41,35 +41,41 @@ pipeline {
       } 
     }
 
-    stage('SonarQube Analysis') { 
-      steps { 
-        withCredentials([string(credentialsId:'sonar_token', variable:'SONAR_TOKEN')]) { 
-          sh '''
-            if command -v sonar-scanner >/dev/null 2>&1; then
-              sonar-scanner -Dsonar.projectKey=my-app -Dsonar.host.url=${SONAR_HOST} -Dsonar.login=\$SONAR_TOKEN
-            else
-              docker run --rm -v "${PWD}":/usr/src sonarsource/sonar-scanner-cli \
-                -Dsonar.projectKey=my-app -Dsonar.sources=/usr/src -Dsonar.host.url=${SONAR_HOST} -Dsonar.login=\$SONAR_TOKEN
-            fi
-          ''' 
-        } 
-      } 
+        stage('SonarQube Analysis') {
+      steps {
+        script {
+          // Vérifie que le scanner est disponible localement
+          echo "🔍 Lancement de l'analyse SonarQube..."
+          withSonarQubeEnv('My SonarQube Server') {   // ⚠️ Nom à faire correspondre à la config Jenkins
+            sh '''
+              set -e
+              if command -v sonar-scanner >/dev/null 2>&1; then
+                sonar-scanner \
+                  -Dsonar.projectKey=my-app \
+                  -Dsonar.sources=. \
+                  -Dsonar.host.url=$SONAR_HOST
+              else
+                docker run --rm \
+                  -v "$PWD":/usr/src \
+                  sonarsource/sonar-scanner-cli \
+                  -Dsonar.projectKey=my-app \
+                  -Dsonar.sources=/usr/src \
+                  -Dsonar.host.url=$SONAR_HOST
+              fi
+            '''
+          }
+        }
+      }
     }
 
-    stage('Quality Gate') { 
-      steps { 
-        script { 
-          withCredentials([string(credentialsId:'sonar_token', variable:'SONAR_TOKEN')]) { 
-            def status = sh(returnStdout:true, script: """
-              sleep 3
-              curl -s -u \$SONAR_TOKEN: ${SONAR_HOST}/api/qualitygates/project_status?projectKey=my-app | jq -r .projectStatus.status
-            """).trim()
-            echo "Sonar Quality Gate: ${status}"
-            if (status != 'OK') { error("Quality Gate failed: ${status}") }
-          } 
-        } 
-      } 
+    stage('Quality Gate') {
+      steps {
+        timeout(time: 5, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
     }
+
 
     stage('Build Docker Image') { 
       steps { 
