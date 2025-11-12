@@ -43,37 +43,46 @@ pipeline {
 
    
 
-stage('SonarQube Analysis') {
+
+
+
+    stage('SonarQube Analysis') {
     steps {
         script {
             echo "🔍 Lancement de l'analyse SonarQube..."
-            // Utilise le token SonarQube stocké dans Jenkins (credentialsId: 'sonar_token')
+
             withCredentials([string(credentialsId: 'sonar_token', variable: 'SONAR_TOKEN')]) {
+                // Vérifie si sonar-scanner est installé localement
                 sh '''
-                    set -e
-                    # Vérifie si sonar-scanner est installé localement
-                    if command -v sonar-scanner >/dev/null 2>&1; then
-                        sonar-scanner \
-                          -Dsonar.projectKey=my-app \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://host.docker.internal:9000 \
-                          -Dsonar.login=$SONAR_TOKEN
-                    else
-                        # Lancement via Docker avec le dossier .sonar pour le cache
-                        docker run --rm \
-                          -v "$PWD":/usr/src \
-                          -v "$PWD/.sonar":/usr/src/.sonar \
-                          sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=my-app \
-                          -Dsonar.sources=/usr/src \
-                          -Dsonar.host.url=http://host.docker.internal:9000 \
-                          -Dsonar.login=$SONAR_TOKEN
-                    fi
+                set -e
+
+                # Détermine l'URL du serveur SonarQube
+                SONAR_HOST_URL=http://host.docker.internal:9000
+
+                if command -v sonar-scanner >/dev/null 2>&1; then
+                    echo "⚡ Exécution du scanner localement..."
+                    sonar-scanner \
+                        -Dsonar.projectKey=my-app \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.login=$SONAR_TOKEN
+                else
+                    echo "🐳 Exécution du scanner via Docker..."
+                    docker run --rm \
+                        -v "$PWD":/usr/src \
+                        -v "$PWD/.sonar":/usr/src/.sonar \
+                        sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=my-app \
+                        -Dsonar.sources=/usr/src \
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.login=$SONAR_TOKEN
+                fi
                 '''
             }
         }
     }
 }
+
 
 
     
